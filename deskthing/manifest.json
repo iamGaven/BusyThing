@@ -1,0 +1,22 @@
+{
+  "id": "busything",
+  "isWebApp": true,
+  "requires": [""],
+  "label": "BusyThing",
+  "version": "0.11.4",
+  "version_code": "11.4",
+  "compatible_server": ["10"],
+  "compatible_client": ["10"],
+  "description": "A busy simulator for DeskThing inspired by Brian Moore",
+  "author": "milest0ne",
+  "platforms": ["windows"],
+  "homepage": "https://deskthing.app",
+  "repository": "https://github.com/ItsRiprod/Deskthing-Apps",
+  "tags": ["Web App", "Entertainment"],
+  "icon": "icons/busything.svg",
+  "requiredVersions": {
+    "server": ">=0.11.0",
+    "client": ">=0.11.0"
+  },
+  "updateUrl": "https://github.com/ItsRiprod/Deskthing-Apps"
+}
