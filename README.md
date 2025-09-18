@@ -2,6 +2,8 @@
 
 A DeskThing app that simulates app notification sounds to help you feign importance! Inspired by [Busy Simulator](https://busysimulator.com/).
 
+Vibe coded with Cursor based on Riprod's DeskThing app template.
+
 ## Features
 
 - **Panel System**: Left panel for controls, right panel for settings
@@ -41,7 +43,6 @@ A DeskThing app that simulates app notification sounds to help you feign importa
 - **Communication**: Slack, Teams, Google Chat, iMessage, Skype, Phone
 - **Productivity**: Google Calendar, Apple Mail, Outlook
 - **Social**: Discord
-- **Entertainment**: (Future apps can be added here)
 
 ## Technical Details
 
@@ -59,4 +60,4 @@ A DeskThing app that simulates app notification sounds to help you feign importa
 
 ## License
 
-Private project - All rights reserved
+This project is open source. See LICENSE file for details.
