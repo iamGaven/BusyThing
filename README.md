@@ -4,6 +4,8 @@ A DeskThing app that simulates app notification sounds to help you feign importa
 
 Vibe coded with Cursor based on Riprod's DeskThing app template.
 
+![busyThing1](https://github.com/user-attachments/assets/3f28d5a8-ebe6-4c07-992b-0e3ee71cf55c)
+
 ## Features
 
 - **Panel System**: Left panel for controls, right panel for settings
@@ -61,3 +63,4 @@ Vibe coded with Cursor based on Riprod's DeskThing app template.
 ## License
 
 This project is open source. See LICENSE file for details.
+
