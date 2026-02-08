@@ -15,6 +15,41 @@ Vibe coded with Cursor based on Riprod's DeskThing app template.
 - **Global Volume**: Master volume control for all sounds
 - **Mobile Optimized**: Designed for DeskThing's 4-inch 800x480 display
 
+## Prerequisites
+
+### ⚠️ Important: PowerShell System Variable Required
+
+This app requires PowerShell to be in your system PATH variable for the App to work properly.
+
+#### Windows - Adding PowerShell to PATH:
+
+1. **Open System Properties**:
+   - Press `Win + R`, type `sysdm.cpl`, and press Enter
+   - Or: Right-click "This PC" → Properties → Advanced system settings
+
+2. **Access Environment Variables**:
+   - Click "Environment Variables" button at the bottom
+
+3. **Edit PATH Variable**:
+   - Under "System variables" (bottom section), find and select "Path"
+   - Click "Edit"
+
+4. **Add PowerShell**:
+   - Click "New"
+   - Add one of these paths (depending on your PowerShell version):
+     - PowerShell 5.x: `C:\Windows\System32\WindowsPowerShell\v1.0`
+     - PowerShell 7.x: `C:\Program Files\PowerShell\7`
+   
+5. **Apply Changes**:
+   - Click OK on all windows
+   - **Restart your terminal/command prompt** for changes to take effect
+
+6. **Verify Installation**:
+   ```bash
+   powershell -v
+   ```
+   You should see the PowerShell version number.
+
 ## Setup
 
 1. Install dependencies:
@@ -36,7 +71,7 @@ Vibe coded with Cursor based on Riprod's DeskThing app template.
 
 1. **Select Apps**: Check the apps you want to activate in the left panel
 2. **Start/Stop**: Use the Start All/Stop All buttons to control playback
-3. **Settings**: Toggle app settings to customize intervals and volumes
+3. **Settings**: Adjust settings in the right panel to customize intervals and volumes
 4. **Categories**: Filter apps by category using the top filter buttons
 5. **Volume**: Adjust global volume or individual app volumes
 
@@ -63,4 +98,3 @@ Vibe coded with Cursor based on Riprod's DeskThing app template.
 ## License
 
 This project is open source. See LICENSE file for details.
-
