@@ -8,7 +8,7 @@
   "compatible_server": ["10"],
   "compatible_client": ["10"],
   "description": "A busy simulator for DeskThing inspired by Brian Moore",
-  "author": "milest0ne",
+  "author": "milest0ne, iamGaven",
   "platforms": ["windows"],
   "homepage": "https://deskthing.app",
   "repository": "https://github.com/ItsRiprod/Deskthing-Apps",
