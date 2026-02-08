@@ -42,14 +42,20 @@ This app requires PowerShell to be in your system PATH variable for the App to w
    
 5. **Apply Changes**:
    - Click OK on all windows
-   - **Restart your terminal/command prompt** for changes to take effect
+   - **Restart your terminal/command prompt and the deskthing server app** for changes to take effect
 
-6. **Verify Installation**:
+ **Verify Installation**:
+   - Open Command Prompt and type:
    ```bash
-   powershell -v
+   powershell
    ```
-   You should see the PowerShell version number.
-
+   - PowerShell should launch and display something like:
+   ```
+   Windows PowerShell
+   Copyright (C) Microsoft Corporation. All rights reserved.
+   Try the new cross-platform PowerShell https://aka.ms/pscore6
+   ```
+   - If you see this, PowerShell is correctly in your PATH. Type `exit` to close PowerShell.
 ## Setup
 
 1. Install dependencies:
