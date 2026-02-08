@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { DeskThing } from '@deskthing/client';
 import { DEVICE_CLIENT } from '@deskthing/types';
 
 interface AppConfig {
@@ -29,16 +30,16 @@ const ASSET_URLS = {
     'phone': new URL('/icons/phone.png', import.meta.url).href,
   },
   sounds: {
-    'google-cal': new URL('/sounds/RE.mp3', import.meta.url).href,
-    'slack': new URL('/sounds/slack.mp3', import.meta.url).href,
-    'teams': new URL('/sounds/teams.mp3', import.meta.url).href,
-    'gchat': new URL('/sounds/gchat.mp3', import.meta.url).href,
-    'discord': new URL('/sounds/discord.mp3', import.meta.url).href,
-    'apple-mail': new URL('/sounds/applemail.mp3', import.meta.url).href,
-    'outlook': new URL('/sounds/outlook.mp3', import.meta.url).href,
-    'imessage': new URL('/sounds/imessage.mp3', import.meta.url).href,
-    'skype': new URL('/sounds/skype.mp3', import.meta.url).href,
-    'phone': new URL('/sounds/phone.mp3', import.meta.url).href,
+    'google-cal': 'RE.mp3',
+    'slack': 'slack.mp3',
+    'teams': 'teams.mp3',
+    'gchat': 'gchat.mp3',
+    'discord': 'discord.mp3',
+    'apple-mail': 'applemail.mp3',
+    'outlook': 'outlook.mp3',
+    'imessage': 'imessage.wav',
+    'skype': 'skype.mp3',
+    'phone': 'phone.wav',
   }
 };
 
@@ -66,9 +67,6 @@ const App: React.FC = () => {
   const [visualFeedback, setVisualFeedback] = useState(true);
   const [defaultInterval, setDefaultInterval] = useState(4000);
   const [defaultAppVolume, setDefaultAppVolume] = useState(0.7);
-  
-  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
-  const intervalRefs = useRef<{ [key: string]: NodeJS.Timeout }>({});
 
   // Memoize categories to prevent unnecessary re-renders
   const categories = useMemo(() => [
@@ -82,40 +80,37 @@ const App: React.FC = () => {
     ? apps 
     : apps.filter(app => app.category === selectedCategory);
 
-  // Initialize audio elements - only run once on mount
+  // Listen for status updates from server
   useEffect(() => {
-    apps.forEach(app => {
-      const audio = new Audio(app.sound);
-      audio.volume = app.volume * globalVolume;
-      audio.preload = 'auto'; // Preload audio
-      audioRefs.current[app.id] = audio;
+    console.log('[BusyThing] Setting up server listeners');
+    
+    // Listen for individual sound status updates
+    const removeSoundStatusListener = DeskThing.on('sound_status', (data: any) => {
+      console.log('[BusyThing] Received sound_status from server:', data);
+      if (data.payload) {
+        const { appId, playing } = data.payload;
+        console.log(`[BusyThing] Server reports ${appId} is ${playing ? 'playing' : 'stopped'}`);
+        
+        // Update app state to reflect server status
+        setApps(prev => prev.map(app => 
+          app.id === appId ? { ...app, active: playing } : app
+        ));
+      }
+    });
+
+    // Listen for all stopped notification
+    const removeAllStoppedListener = DeskThing.on('all_stopped', (data: any) => {
+      console.log('[BusyThing] Received all_stopped from server');
+      setIsRunning(false);
+      setApps(prev => prev.map(app => ({ ...app, active: false })));
     });
 
     return () => {
-      // Cleanup audio elements
-      Object.values(audioRefs.current).forEach(audio => {
-        audio.pause();
-        audio.src = '';
-      });
+      console.log('[BusyThing] Cleaning up server listeners');
+      removeSoundStatusListener();
+      removeAllStoppedListener();
     };
-  }, []); // Empty dependency array - only run once on mount
-
-  useEffect(() => {
-    // Update all audio volumes when global volume changes
-    Object.values(audioRefs.current).forEach(audio => {
-      audio.volume = globalVolume;
-    });
-  }, [globalVolume]);
-
-  // Update individual app volumes when they change
-  useEffect(() => {
-    apps.forEach(app => {
-      const audio = audioRefs.current[app.id];
-      if (audio) {
-        audio.volume = app.volume * globalVolume;
-      }
-    });
-  }, [apps, globalVolume]);
+  }, []);
 
   // Robust settings handling (like ActionThing)
   useEffect(() => {
@@ -294,209 +289,241 @@ const App: React.FC = () => {
     }
   };
 
-  // Apply default settings to apps when they are first created or when defaults change
-  // This ensures new apps get the current default values
-  const applyDefaultsToApps = () => {
-    setApps(prev => prev.map(app => ({
-      ...app,
-      interval: defaultInterval,
-      volume: defaultAppVolume
-    })));
-  };
-
+  // Toggle app on/off
   const toggleApp = (appId: string) => {
-    setApps(prev => prev.map(app => {
-      if (app.id === appId) {
-        const newActive = !app.active;
-        // If activating the app, start it immediately with forceActive
-        if (newActive) {
-          startApp(appId, true); // Force start even before state update
-        } else {
-          // If deactivating the app, stop it
-          stopApp(appId);
+    const app = apps.find(a => a.id === appId);
+    if (!app) return;
+
+    const newActive = !app.active;
+    
+    console.log(`[BusyThing] Toggling ${appId} to ${newActive ? 'active' : 'inactive'}`);
+
+    if (newActive) {
+      // Send play request to server
+      console.log(`[BusyThing] Sending play_sound request for ${appId}`);
+      DeskThing.send({
+        type: 'data',
+        payload: {
+          request: 'play_sound',
+          appId: app.id,
+          soundFile: app.sound,
+          interval: app.interval,
+          volume: app.volume * globalVolume
         }
-        return { ...app, active: newActive };
-      }
-      return app;
-    }));
+      });
+    } else {
+      // Send stop request to server
+      console.log(`[BusyThing] Sending stop_sound request for ${appId}`);
+      DeskThing.send({
+        type: 'data',
+        payload: {
+          request: 'stop_sound',
+          appId: app.id
+        }
+      });
+    }
+
+    // Update local state optimistically
+    setApps(prev => prev.map(a => 
+      a.id === appId ? { ...a, active: newActive } : a
+    ));
   };
 
+  // Start all active apps
   const startAll = () => {
+    if (!soundEnabled) {
+      console.warn('[BusyThing] Cannot start - sounds are disabled');
+      return;
+    }
+
+    console.log('[BusyThing] Starting all active apps');
     setIsRunning(true);
+    
     apps.forEach(app => {
       if (app.active) {
-        startApp(app.id);
+        console.log(`[BusyThing] Sending play_sound request for ${app.id}`);
+        DeskThing.send({
+          type: 'data',
+          payload: {
+            request: 'play_sound',
+            appId: app.id,
+            soundFile: app.sound,
+            interval: app.interval,
+            volume: app.volume * globalVolume
+          }
+        });
       }
     });
-    console.log('Started all active apps');
   };
 
+  // Stop all sounds
   const stopAll = () => {
+    console.log('[BusyThing] Stopping all sounds');
     setIsRunning(false);
-    Object.values(intervalRefs.current).forEach(interval => {
-      clearInterval(interval);
-    });
-    intervalRefs.current = {};
-    console.log('Stopped all apps');
-  };
-
-  const startApp = (appId: string, forceActive = false) => {
-    const app = apps.find(a => a.id === appId);
-    if (!app || (!app.active && !forceActive)) return;
-
-    // Don't start if sounds are disabled globally
-    if (!soundEnabled) return;
-
-    const audio = audioRefs.current[appId];
-    if (!audio) return;
-
-    // Clear existing interval
-    if (intervalRefs.current[appId]) {
-      clearInterval(intervalRefs.current[appId]);
-    }
-
-    // Start new interval
-    intervalRefs.current[appId] = setInterval(() => {
-      // Check if sounds are still enabled
-      if (!soundEnabled) return;
-      
-      // Ensure audio is loaded
-      if (audio.readyState === 0) {
-        audio.load();
+    
+    // Send stop all request to server
+    DeskThing.send({
+      type: 'data',
+      payload: {
+        request: 'stop_all'
       }
-      audio.currentTime = 0;
-      audio.play().then(() => {
-        console.log(`Playing ${app.name} audio`);
-      }).catch(err => {
-        console.error(`Failed to play ${app.name}:`, err);
-      });
-    }, app.interval);
+    });
+
+    // Update local state
+    setApps(prev => prev.map(app => ({ ...app, active: false })));
   };
 
-  const stopApp = (appId: string) => {
-    if (intervalRefs.current[appId]) {
-      clearInterval(intervalRefs.current[appId]);
-      delete intervalRefs.current[appId];
-    }
-  };
-
+  // Update app interval
   const updateAppInterval = (appId: string, interval: number) => {
+    console.log(`[BusyThing] Updating ${appId} interval to ${interval}ms`);
+    
     setApps(prev => prev.map(app => 
       app.id === appId ? { ...app, interval } : app
     ));
     
-    // Restart app if it's currently running
-    if (intervalRefs.current[appId]) {
-      stopApp(appId);
-      startApp(appId);
+    // If app is currently playing, restart it with new interval
+    const app = apps.find(a => a.id === appId);
+    if (app && app.active) {
+      console.log(`[BusyThing] App is active, restarting with new interval`);
+      // Stop then restart with new settings
+      DeskThing.send({
+        type: 'data',
+        payload: {
+          request: 'stop_sound',
+          appId
+        }
+      });
+      
+      setTimeout(() => {
+        DeskThing.send({
+          type: 'data',
+          payload: {
+            request: 'play_sound',
+            appId,
+            soundFile: app.sound,
+            interval,
+            volume: app.volume * globalVolume
+          }
+        });
+      }, 100);
     }
   };
 
+  // Update app volume
   const updateAppVolume = (appId: string, volume: number) => {
+    console.log(`[BusyThing] Updating ${appId} volume to ${volume}`);
+    
     setApps(prev => prev.map(app => 
       app.id === appId ? { ...app, volume } : app
     ));
     
-    const audio = audioRefs.current[appId];
-    if (audio) {
-      audio.volume = volume * globalVolume;
-    }
-  };
-
-  // Test audio function to help debug autoplay issues
-  const testAudio = (appId: string) => {
-    const audio = audioRefs.current[appId];
-    if (audio) {
-      // Initialize audio context on first user interaction
-      if (audio.readyState === 0) {
-        audio.load();
-      }
-      audio.currentTime = 0;
-      audio.play().then(() => {
-        console.log(`Audio test successful for ${appId}`);
-      }).catch(err => {
-        console.error(`Audio test failed for ${appId}:`, err);
+    // If app is currently playing, restart it with new volume
+    const app = apps.find(a => a.id === appId);
+    if (app && app.active) {
+      console.log(`[BusyThing] App is active, restarting with new volume`);
+      DeskThing.send({
+        type: 'data',
+        payload: {
+          request: 'stop_sound',
+          appId
+        }
       });
+      
+      setTimeout(() => {
+        DeskThing.send({
+          type: 'data',
+          payload: {
+            request: 'play_sound',
+            appId,
+            soundFile: app.sound,
+            interval: app.interval,
+            volume: volume * globalVolume
+          }
+        });
+      }, 100);
     }
   };
 
-// Global click handler for panel toggles and click-outside-to-close
-useEffect(() => {
-  const handleClick = (event: MouseEvent) => {
-    const target = event.target as HTMLElement;
-    
-    console.log('BusyThing: Global click detected on:', target.tagName, target.className, target);
-    
-    // If clicking inside a panel, don't close it
-    if (target.closest('.panel-container')) {
-      console.log('BusyThing: Click inside panel, not closing');
-      return;
-    }
-    
-    // If clicking on interactive elements, don't toggle panels
-    if (target.tagName === 'BUTTON' || 
-        target.closest('button') || 
-        target.closest('input') || 
-        target.closest('select') ||
-        target.closest('[class*="grid"]') || // Don't trigger on grid content
-        target.closest('[class*="bg-white/10"]')) { // Don't trigger on app tiles
-      console.log('BusyThing: Click on interactive element detected, not toggling panel');
-      return;
-    }
-    
-    const clientX = event.clientX;
-    const screenWidth = window.innerWidth;
-    const edgeThreshold = 20; // Only trigger within 20px of screen edges
-    
-    const isLeftEdge = clientX < edgeThreshold;
-    const isRightEdge = clientX > screenWidth - edgeThreshold;
-    
-    // If panels are open and clicking outside, close them
-    if (showLeftPanel || showRightPanel) {
-      console.log('BusyThing: Click outside panels, closing them');
-      setShowLeftPanel(false);
-      setShowRightPanel(false);
-      return;
-    }
-    
-    // If panels are closed and clicking on edges, open them
-    if (isRightEdge) {
-      console.log('BusyThing: Right edge click detected, opening right panel');
-      setShowRightPanel(true);
-    } else if (isLeftEdge) {
-      console.log('BusyThing: Left edge click detected, opening left panel');
-      setShowLeftPanel(true);
-    }
+  // Test audio function
+  const testAudio = (appId: string) => {
+    const app = apps.find(a => a.id === appId);
+    if (!app) return;
+
+    console.log(`[BusyThing] Testing audio for ${appId}`);
+    DeskThing.send({
+      type: 'data',
+      payload: {
+        request: 'test_sound',
+        soundFile: app.sound,
+        volume: app.volume * globalVolume
+      }
+    });
   };
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      setShowLeftPanel(false);
-      setShowRightPanel(false);
-    }
-  };
+  // Global click handler for panel toggles and click-outside-to-close
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      console.log('BusyThing: Global click detected on:', target.tagName, target.className, target);
+      
+      // If clicking inside a panel, don't close it
+      if (target.closest('.panel-container')) {
+        console.log('BusyThing: Click inside panel, not closing');
+        return;
+      }
+      
+      // If clicking on interactive elements, don't toggle panels
+      if (target.tagName === 'BUTTON' || 
+          target.closest('button') || 
+          target.closest('input') || 
+          target.closest('select') ||
+          target.closest('[class*="grid"]') || // Don't trigger on grid content
+          target.closest('[class*="bg-white/10"]')) { // Don't trigger on app tiles
+        console.log('BusyThing: Click on interactive element detected, not toggling panel');
+        return;
+      }
+      
+      const clientX = event.clientX;
+      const screenWidth = window.innerWidth;
+      const edgeThreshold = 20; // Only trigger within 20px of screen edges
+      
+      const isLeftEdge = clientX < edgeThreshold;
+      const isRightEdge = clientX > screenWidth - edgeThreshold;
+      
+      // If panels are open and clicking outside, close them
+      if (showLeftPanel || showRightPanel) {
+        console.log('BusyThing: Click outside panels, closing them');
+        setShowLeftPanel(false);
+        setShowRightPanel(false);
+        return;
+      }
+      
+      // If panels are closed and clicking on edges, open them
+      if (isRightEdge) {
+        console.log('BusyThing: Right edge click detected, opening right panel');
+        setShowRightPanel(true);
+      } else if (isLeftEdge) {
+        console.log('BusyThing: Left edge click detected, opening left panel');
+        setShowLeftPanel(true);
+      }
+    };
 
-  window.addEventListener('click', handleClick);
-  document.addEventListener('keydown', handleKeyDown);
-  
-  return () => {
-    window.removeEventListener('click', handleClick);
-    document.removeEventListener('keydown', handleKeyDown);
-  };
-}, [showLeftPanel, showRightPanel]);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowLeftPanel(false);
+        setShowRightPanel(false);
+      }
+    };
 
-
-
-
-
-
-
-
-
-
-
-
-
+    window.addEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showLeftPanel, showRightPanel]);
 
   return (
     <div className="w-screen h-screen relative overflow-y-auto" style={{ backgroundColor }}>
