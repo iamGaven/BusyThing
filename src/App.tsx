@@ -37,9 +37,9 @@ const ASSET_URLS = {
     'discord': 'discord.mp3',
     'apple-mail': 'applemail.mp3',
     'outlook': 'outlook.mp3',
-    'imessage': 'imessage.wav',
+    'imessage': 'imessage.mp3',
     'skype': 'skype.mp3',
-    'phone': 'phone.wav',
+    'phone': 'phone.mp3',
   }
 };
 
@@ -460,52 +460,22 @@ const App: React.FC = () => {
     });
   };
 
-  // Global click handler for panel toggles and click-outside-to-close
+  // Simplified click handler - only for closing panels when clicking outside
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       
-      console.log('BusyThing: Global click detected on:', target.tagName, target.className, target);
-      
-      // If clicking inside a panel, don't close it
-      if (target.closest('.panel-container')) {
-        console.log('BusyThing: Click inside panel, not closing');
+      // If clicking inside a panel or on edge zones, don't do anything
+      if (target.closest('.panel-container') || 
+          target.closest('.edge-trigger-zone')) {
         return;
       }
       
-      // If clicking on interactive elements, don't toggle panels
-      if (target.tagName === 'BUTTON' || 
-          target.closest('button') || 
-          target.closest('input') || 
-          target.closest('select') ||
-          target.closest('[class*="grid"]') || // Don't trigger on grid content
-          target.closest('[class*="bg-white/10"]')) { // Don't trigger on app tiles
-        console.log('BusyThing: Click on interactive element detected, not toggling panel');
-        return;
-      }
-      
-      const clientX = event.clientX;
-      const screenWidth = window.innerWidth;
-      const edgeThreshold = 20; // Only trigger within 20px of screen edges
-      
-      const isLeftEdge = clientX < edgeThreshold;
-      const isRightEdge = clientX > screenWidth - edgeThreshold;
-      
-      // If panels are open and clicking outside, close them
+      // Close panels if clicking outside
       if (showLeftPanel || showRightPanel) {
         console.log('BusyThing: Click outside panels, closing them');
         setShowLeftPanel(false);
         setShowRightPanel(false);
-        return;
-      }
-      
-      // If panels are closed and clicking on edges, open them
-      if (isRightEdge) {
-        console.log('BusyThing: Right edge click detected, opening right panel');
-        setShowRightPanel(true);
-      } else if (isLeftEdge) {
-        console.log('BusyThing: Left edge click detected, opening left panel');
-        setShowLeftPanel(true);
       }
     };
 
@@ -526,22 +496,22 @@ const App: React.FC = () => {
   }, [showLeftPanel, showRightPanel]);
 
   return (
-    <div className="w-screen h-screen relative overflow-y-auto" style={{ backgroundColor }}>
+    <div className="w-screen h-screen relative overflow-hidden flex flex-col" style={{ backgroundColor }}>
       {/* Main Content - App Cards Grid */}
-      <div className="w-full h-full relative">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="text-center py-4 px-4 sm:px-6">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 text-white">BusyThing</h1>
-          <p className="text-xs sm:text-sm opacity-90 text-white px-2">Feign importance with repeating app sounds!</p>
+        <div className="text-center py-2 px-4 flex-shrink-0">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-0.5 text-white">BusyThing</h1>
+          <p className="text-xs opacity-90 text-white">Feign importance with repeating app sounds!</p>
         </div>
 
         {/* Category Filters */}
-        <div className="flex justify-center gap-2 sm:gap-3 px-2 sm:px-4 mb-4 sm:mb-6 overflow-x-auto">
+        <div className="flex justify-center gap-2 px-2 mb-2 flex-shrink-0 overflow-x-auto">
           {categories.map(category => (
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`px-3 sm:px-4 py-2 sm:py-3 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-colors min-h-[40px] sm:min-h-[44px] min-w-[40px] sm:min-w-[44px] flex items-center justify-center ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
                 selectedCategory === category.id
                   ? 'bg-blue-500 text-white'
                   : 'bg-white/20 text-white border border-white/30 hover:bg-white/30'
@@ -552,32 +522,34 @@ const App: React.FC = () => {
           ))}
         </div>
 
-        {/* App Cards Grid */}
-        <div className="flex justify-center px-4 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 max-w-7xl w-full">
-            {filteredApps.map(app => (
-              <div 
-                key={app.id} 
-                className={`bg-white/10 rounded-lg p-3 backdrop-blur-sm min-h-[120px] flex flex-col cursor-pointer transition-all duration-200 hover:bg-white/20 ${
-                  app.active && visualFeedback ? 'ring-2 ring-blue-400 bg-blue-500/20' : ''
-                }`}
-                onClick={() => toggleApp(app.id)}
-              >
-                <div className="flex flex-col items-center space-y-2 flex-1">
-                  <img src={app.icon} alt={app.name} className="w-12 h-12 sm:w-10 sm:h-10" />
-                  <span className="text-xs font-medium text-center text-white leading-tight">{app.name}</span>
-                  <div className="flex items-center gap-2 mt-auto">
-                    <div className={`w-3 h-3 rounded-full ${app.active ? 'bg-green-400' : 'bg-gray-500'}`}></div>
-                    <span className="text-xs text-white">{app.active ? 'Active' : 'Inactive'}</span>
+        {/* App Cards Grid - scrollable */}
+        <div className="flex-1 overflow-y-auto px-2 pb-2">
+          <div className="flex justify-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-w-7xl w-full">
+              {filteredApps.map(app => (
+                <div 
+                  key={app.id} 
+                  className={`bg-white/10 rounded-lg p-2 backdrop-blur-sm flex flex-col cursor-pointer transition-all duration-200 hover:bg-white/20 ${
+                    app.active && visualFeedback ? 'ring-2 ring-blue-400 bg-blue-500/20' : ''
+                  }`}
+                  onClick={() => toggleApp(app.id)}
+                >
+                  <div className="flex flex-col items-center space-y-1 flex-1">
+                    <img src={app.icon} alt={app.name} className="w-10 h-10 sm:w-12 sm:h-12" />
+                    <span className="text-xs font-medium text-center text-white leading-tight">{app.name}</span>
+                    <div className="flex items-center gap-1.5 mt-auto">
+                      <div className={`w-2 h-2 rounded-full ${app.active ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+                      <span className="text-xs text-white">{app.active ? 'Active' : 'Inactive'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Status Bar */}
-        <div className="fixed bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm px-2 py-1">
+        <div className="bg-black/50 backdrop-blur-sm px-2 py-1 flex-shrink-0">
           <div className="text-center text-xs opacity-75 text-white">
             {isRunning ? (
               <span className="text-green-400">● Running {apps.filter(app => app.active).length} apps</span>
@@ -588,40 +560,71 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Panel Toggle Areas - Simple mobile-style dots */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Left side dot indicator */}
-        <div className="absolute left-0 top-0 w-4 h-full pointer-events-none">
-          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 opacity-30 hover:opacity-60 transition-opacity">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
+      {/* Edge Trigger Zones - Clickable areas to open panels */}
+      {!showLeftPanel && (
+        <div 
+          className="edge-trigger-zone fixed left-0 top-0 w-12 h-full z-40 cursor-pointer"
+          onClick={() => {
+            console.log('BusyThing: Left edge zone clicked, opening left panel');
+            setShowLeftPanel(true);
+          }}
+        >
+          <div className="h-full flex items-center justify-start pl-1">
+            <div className="flex flex-col gap-1.5 opacity-50 hover:opacity-80 transition-opacity">
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Right side dot indicator */}
-        <div className="absolute right-0 top-0 w-4 h-full pointer-events-none">
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-30 hover:opacity-60 transition-opacity">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
+      {!showRightPanel && (
+        <div 
+          className="edge-trigger-zone fixed right-0 top-0 w-12 h-full z-40 cursor-pointer"
+          onClick={() => {
+            console.log('BusyThing: Right edge zone clicked, opening right panel');
+            setShowRightPanel(true);
+          }}
+        >
+          <div className="h-full flex items-center justify-end pr-1">
+            <div className="flex flex-col gap-1.5 opacity-50 hover:opacity-80 transition-opacity">
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+              <div className="w-1 h-10 bg-white rounded-full"></div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Left Panel - Controls */}
       <div className={`${showLeftPanel ? 'panel' : ''} left-panel`}>
-        <div className={`panel-container fixed left-0 top-0 h-full w-full sm:w-96 bg-gray-900 text-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
+        {/* Floating Close Button - positioned outside panel edge */}
+        {showLeftPanel && (
+          <button
+            onClick={() => setShowLeftPanel(false)}
+            className="fixed left-[calc(100%-3rem)] sm:left-[calc(20rem+1rem)] top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 text-white shadow-lg z-[60] flex items-center justify-center transition-all hover:scale-110 border-2 border-white/20"
+            style={{ marginLeft: '0.5rem' }}
+          >
+            <span className="text-2xl font-light">×</span>
+          </button>
+        )}
+        
+        <div className={`panel-container fixed left-0 top-0 h-full w-full sm:w-80 bg-gray-900 text-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
           showLeftPanel ? 'translate-x-0' : '-translate-x-full'
         }`}>
-          <div className="panel-content p-3 sm:p-6 h-full overflow-y-auto">
+          <div className="panel-content p-4 h-full overflow-y-auto">
             {/* Header */}
-            <div className="flex justify-between items-center mb-4 sm:mb-6 sticky top-0 bg-gray-900 pb-2">
-              <h2 className="text-xl sm:text-2xl font-bold">Controls</h2>
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-900 pb-2 z-10">
+              <h2 className="text-xl font-bold">Controls</h2>
             </div>
 
             {/* Start/Stop Controls */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-2 mb-4">
               <button
                 onClick={startAll}
                 disabled={isRunning || !apps.some(app => app.active)}
-                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white py-3 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <span className="text-lg">🚀</span>
                 Start All
@@ -629,7 +632,7 @@ const App: React.FC = () => {
               <button
                 onClick={stopAll}
                 disabled={!isRunning}
-                className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white py-3 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
               >
                 <span className="text-lg">⏹️</span>
                 Stop All
@@ -665,20 +668,31 @@ const App: React.FC = () => {
 
       {/* Right Panel - Settings */}
       <div className={`${showRightPanel ? 'panel' : ''} right-panel`}>
-        <div className={`panel-container fixed right-0 top-0 h-full w-full sm:w-96 bg-gray-900 text-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
+        {/* Floating Close Button - positioned outside panel edge */}
+        {showRightPanel && (
+          <button
+            onClick={() => setShowRightPanel(false)}
+            className="fixed right-[calc(100%-3rem)] sm:right-[calc(20rem+1rem)] top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gray-800 hover:bg-gray-700 text-white shadow-lg z-[60] flex items-center justify-center transition-all hover:scale-110 border-2 border-white/20"
+            style={{ marginRight: '0.5rem' }}
+          >
+            <span className="text-2xl font-light">×</span>
+          </button>
+        )}
+        
+        <div className={`panel-container fixed right-0 top-0 h-full w-full sm:w-80 bg-gray-900 text-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
         }`}>
-          <div className="panel-content p-3 sm:p-6 h-full overflow-y-auto">
+          <div className="panel-content p-4 h-full overflow-y-auto">
             {/* Header */}
-            <div className="flex justify-between items-center mb-4 sm:mb-6 sticky top-0 bg-gray-900 pb-2">
-              <h2 className="text-xl sm:text-2xl font-bold">Settings</h2>
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-900 pb-2 z-10">
+              <h2 className="text-xl font-bold">Settings</h2>
             </div>
 
             {/* Global Settings */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-4">
               <h3 className="text-sm font-semibold">Global Settings</h3>
               <div>
-                <label className="text-xs block mb-2">Master Volume</label>
+                <label className="text-xs block mb-1">Master Volume</label>
                 <input
                   type="range"
                   min="0"
@@ -691,7 +705,7 @@ const App: React.FC = () => {
                 <span className="text-xs opacity-75">{Math.round(globalVolume * 100)}%</span>
               </div>
               <div>
-                <label className="text-xs block mb-2">Default Sound Interval (ms)</label>
+                <label className="text-xs block mb-1">Default Sound Interval (ms)</label>
                 <input
                   type="range"
                   min="1000"
@@ -704,7 +718,7 @@ const App: React.FC = () => {
                 <span className="text-xs opacity-75">{defaultInterval}ms</span>
               </div>
               <div>
-                <label className="text-xs block mb-2">Default App Volume</label>
+                <label className="text-xs block mb-1">Default App Volume</label>
                 <input
                   type="range"
                   min="0"
@@ -717,13 +731,13 @@ const App: React.FC = () => {
                 <span className="text-xs opacity-75">{Math.round(defaultAppVolume * 100)}%</span>
               </div>
               <div>
-                <label className="text-xs block mb-2">Background Color</label>
+                <label className="text-xs block mb-1">Background Color</label>
                 <div className="flex items-center gap-2 mb-2">
                   <input
                     type="color"
                     value={backgroundColor}
                     onChange={(e) => handleSettingChange('backgroundColor', e.target.value)}
-                    className="w-12 h-8 rounded border border-gray-600 cursor-pointer"
+                    className="w-10 h-7 rounded border border-gray-600 cursor-pointer"
                   />
                   <span className="text-xs opacity-75">{backgroundColor}</span>
                 </div>
@@ -769,15 +783,15 @@ const App: React.FC = () => {
             </div>
 
             {/* App Settings */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-sm font-semibold">App Settings</h3>
               {filteredApps.map(app => (
-                <div key={app.id} className="p-3 bg-gray-800 rounded-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <img src={app.icon} alt={app.name} className="w-6 h-6" />
+                <div key={app.id} className="p-2.5 bg-gray-800 rounded-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img src={app.icon} alt={app.name} className="w-5 h-5" />
                     <span className="text-xs font-medium">{app.name}</span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div>
                       <label className="text-xs block mb-1">Interval (ms)</label>
                       <input
